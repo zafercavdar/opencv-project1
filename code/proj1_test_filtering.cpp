@@ -16,10 +16,6 @@ using namespace std;
 
 Mat myFilter(Mat, Mat, int);
 
-void print(int var){
-	cout << var << std::endl;
-}
-
 Vec3d get_pixel_with_zero_padding(Mat im, int x, int y){
 	if (x < 0 || y < 0)
 		return Vec3d(0, 0, 0);
