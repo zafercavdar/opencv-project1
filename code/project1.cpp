@@ -15,7 +15,55 @@ Mat myFilter(Mat, Mat, int);
 Mat hybrid_image_visualize(Mat);
 Mat DFT_Spectrum(Mat);
 
+Vec3d get_pixel_with_zero_padding(Mat im, int x, int y){
+	if (x < 0 || y < 0)
+		return Vec3d(0, 0, 0);
+	else if(x >= im.cols || y >= im.rows)
+		return Vec3d(0, 0, 0);
+	else return im.at<Vec3d>(y, x);
+}
 
+Vec3d get_pixel_with_replicate(Mat im, int x, int y){
+	int w = im.cols;
+	int h = im.rows;
+
+	// initialize rx and ry
+	int rx = x;
+	int ry = y;
+
+	if (x < 0)
+		rx = 0;
+	else if (x >= w)
+		rx = w - 1;
+	
+	if (y < 0)
+		ry = 0;
+	else if (y >= h)
+		ry = h - 1;
+
+	return im.at<Vec3d>(ry, rx);
+}
+
+Vec3d get_pixel_with_reflect(Mat im, int x, int y){
+	int w = im.cols;
+	int h = im.rows;
+
+	// initialize rx and ry
+	int rx = x;
+	int ry = y;
+
+	if (x < 0)
+		rx = -x;
+	else if (x >= w)
+		rx = (w - 1) * 2 - x;
+	
+	if (y < 0)
+		ry = -y;
+	else if (y >= h)
+		ry = (h - 1) * 2 - y;
+	
+	return im.at<Vec3d>(ry, rx);
+}
 
 enum border { Border_Replicate, Border_Reflect, Border_Constant };
 
@@ -42,15 +90,57 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Constant)
 
 	*/
 
+	Mat outI = im.clone();
+	int channels = im.channels();
+	int row_boundary = filter.rows / 2;
+	int column_boundary = filter.cols / 2;
+	Scalar intensity;
+	Vec3d color;
 
+	for (int y= 0; y < outI.rows; y++){
+		for (int x= 0; x < outI.cols; x++){
+			if (channels == 3){
 
-	Mat outI;
+				// reset color accumulator
+				color = Vec3d(0, 0, 0);
+				
+				// iterate over filter
+				for (int j= 0; j < filter.rows; j++){
+					for (int i= 0; i < filter.cols; i++){
+						int index_j = j - filter.rows / 2;
+						int index_i = i - filter.cols / 2;
+						
+						Vec3d pixel;
 
-	////////////////////////
-	//Write your code here
-	////////////////////////
+						switch(borderType){
+							case Border_Constant:
+								pixel = get_pixel_with_zero_padding(im, x + index_i, y + index_j);
+								break;
+							case Border_Replicate:
+								pixel = get_pixel_with_replicate(im, x + index_i, y + index_j);
+								break;
+							case Border_Reflect:
+								pixel = get_pixel_with_reflect(im, x + index_i, y + index_j);
+								break;
+							default:
+								cout << "ERROR! borderType is not valid." << std::endl;
+								pixel = Vec3d(0, 0, 0);
+						}
 
-	
+						//iterate over each channel
+						for (int c=0; c < channels; c++){
+							color[c] += pixel.val[c] * filter.at<double>(j, i);
+						}
+					}
+				}
+				// update output image with calculated color
+				outI.at<Vec3d>(y, x) = color;
+
+			} else if (channels == 1){
+				// outI.at<uchar>(y, x) = 128;
+			}
+		}
+	}
 	return outI;
 }
 
@@ -98,26 +188,30 @@ Mat DFT_Spectrum(Mat img)
 
 	/////////////////////////////////////////////////////////////////////
 	//STEP 1: pad the input image to optimal size using getOptimalDFTSize()
-	
-	//Write your code here
-	
+	Mat padded_img;
+	int border_y = getOptimalDFTSize(img.rows) - img.rows;
+	int border_x = getOptimalDFTSize(img.cols) - img.cols;
+	copyMakeBorder(img, padded_img, 0, border_y, 0, border_x, BORDER_CONSTANT, Scalar(0));
 
 	
 	///////////////////////////////////////////////////////////////////
 	//STEP 2:  Determine complex DFT of the image. 
 	// Use the function dft(src, dst, DFT_COMPLEX_OUTPUT) to return a complex Mat variable.
 	// The first dimension represents the real part and second dimesion represents the complex part of the DFT 
-	
-	//Write your code here
-	
-
+	Mat dft_img;
+	dft(padded_img, dft_img, DFT_COMPLEX_OUTPUT);
+	vector<Mat> parts(2);
+	split(dft_img, parts);
+	Mat real = parts[0];
+	Mat complex = parts[1];
 	////////////////////////////////////////////////////////////////////
 	//Step 3: compute the magnitude and switch to logarithmic scale
 	//=> log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
 	
-	Mat magI;	
-	//Write your code here
-
+	Mat magI;
+	magnitude(real, complex, magI);
+	magI += Scalar(1);
+	log(magI, magI);
 
 	///////////////////////////////////////////////////////////////////
 	// Step 4: 
@@ -128,11 +222,22 @@ Mat DFT_Spectrum(Mat img)
 
 	//crop the spectrum, if it has an odd number of rows or columns
 	magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
+	int center_y = magI.rows / 2;
+	int center_x = magI.cols / 2;
+
+	Mat top_left = magI(Rect(0, 0, center_x, center_y));
+	Mat bottom_right = magI(Rect(center_x, center_y, center_x, center_y));
+	Mat swap_mem = top_left.clone();
+	top_left = bottom_right.clone();
+	bottom_right = swap_mem.clone();
+
+
+	Mat bottom_left = magI(Rect(0, center_y, center_x, center_y));
+	Mat top_right = magI(Rect(center_x, 0, center_x, center_y));
+	swap_mem = bottom_left.clone();
+	bottom_left = top_right.clone();
+	top_right = swap_mem.clone();
 	
-	//Write your code here
-
-
-
 	// Transform the matrix with float values into a viewable image form (float between values 0 and 1).
 	normalize(magI, magI, 0, 1, CV_MINMAX);
 	return magI;
@@ -141,14 +246,14 @@ Mat DFT_Spectrum(Mat img)
 int main()
 {
 	//Read images
-	Mat image1 = imread("../data/dog.bmp");
+	Mat image1 = imread("data/dog.bmp");
 	if (!image1.data)                              // Check for invalid image
 	{
 		cout << "Could not open or find the image" << std::endl;
 		return -1;
 	}
 
-	Mat image2 = imread("../data/cat.bmp");
+	Mat image2 = imread("data/cat.bmp");
 	if (!image2.data)                              // Check for invalid image
 	{
 		cout << "Could not open or find the image" << std::endl;
@@ -192,8 +297,6 @@ int main()
 	Mat filter = getGaussianKernel(cutoff_frequency * 4 + 1, cutoff_frequency, CV_64F);
 	filter = filter*filter.t();
 
-
-
 	// YOUR CODE BELOW. 
 	// Use myFilter() to create low_frequencies of image 1. The easiest
 	// way to create high frequencies of image 2 is to subtract a blurred
@@ -201,11 +304,9 @@ int main()
 	// low frequencies and high frequencies to create 'hybrid_image'
 
 
-	Mat low_freq_img;
-
-	Mat high_freq_img;
-
-	Mat hybrid_image;
+	Mat low_freq_img = myFilter(image1, filter);
+	Mat high_freq_img = image2 - myFilter(image2, filter);
+	Mat hybrid_image = low_freq_img + high_freq_img;
 
 
 	////  Visualize and save outputs  ////	
@@ -228,6 +329,12 @@ int main()
 	imwrite("hybrid_image.jpg", hybrid_image);
 	imwrite("hybrid_image_scales.jpg", vis);
 
+	/*Several additional test cases are provided for you, but feel free to make
+	your own(you'll need to align the images in a photo editor such as
+	Photoshop).The hybrid images will differ depending on which image you
+	assign as image1(which will provide the low frequencies) and which image
+	you asign as image2(which will provide the high frequencies) */
+	
 	//============================================================================
 	//							PART 3
 	//============================================================================
@@ -253,5 +360,4 @@ int main()
 	Mat high_freq_DFT = DFT_Spectrum(high_freq_img);
 	imshow("High Frequencies DFT", high_freq_DFT); waitKey(0);
 	imwrite("High_Freq_DFT.jpg", high_freq_DFT * 255);
-
 }
