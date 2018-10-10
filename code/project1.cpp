@@ -222,22 +222,25 @@ Mat DFT_Spectrum(Mat img)
 
 	//crop the spectrum, if it has an odd number of rows or columns
 	magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
+
 	int center_y = magI.rows / 2;
 	int center_x = magI.cols / 2;
 
 	Mat top_left = magI(Rect(0, 0, center_x, center_y));
 	Mat bottom_right = magI(Rect(center_x, center_y, center_x, center_y));
-	Mat swap_mem = top_left.clone();
-	top_left = bottom_right.clone();
-	bottom_right = swap_mem.clone();
 
-
+	Mat swap_mem;
+	top_left.copyTo(swap_mem);
+	bottom_right.copyTo(top_left);
+	swap_mem.copyTo(bottom_right);
+	
 	Mat bottom_left = magI(Rect(0, center_y, center_x, center_y));
 	Mat top_right = magI(Rect(center_x, 0, center_x, center_y));
-	swap_mem = bottom_left.clone();
-	bottom_left = top_right.clone();
-	top_right = swap_mem.clone();
-	
+
+	bottom_left.copyTo(swap_mem);
+	top_right.copyTo(bottom_left);
+	swap_mem.copyTo(top_right);
+
 	// Transform the matrix with float values into a viewable image form (float between values 0 and 1).
 	normalize(magI, magI, 0, 1, CV_MINMAX);
 	return magI;
