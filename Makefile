@@ -14,8 +14,8 @@ compile-main:
 
 test: compile-test
 	./$(OUTPUT)
-	$(MAKE) clean
+	rm $(OUTPUT)
 
 run: compile-main
 	./$(OUTPUT)
-	$(MAKE) clean
+	rm $(OUTPUT)
