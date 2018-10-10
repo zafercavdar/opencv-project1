@@ -142,9 +142,7 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 			}
 		}
 	}
-
 	return outI;
-
 }
 
 int main()
