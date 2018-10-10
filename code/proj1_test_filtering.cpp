@@ -25,16 +25,14 @@ Vec3d get_pixel_with_zero_padding(Mat im, int x, int y){
 		return Vec3d(0, 0, 0);
 	else if(x >= im.cols || y >= im.rows)
 		return Vec3d(0, 0, 0);
-	else return im.at<Vec3d>(y, x);
 }
 
 Vec3d get_pixel_with_replicate(Mat im, int x, int y){
 	int w = im.cols;
 	int h = im.rows;
 
-	// initialize rx and ry
-	int rx = x;
-	int ry = y;
+	int rx;
+	int ry;
 
 	if (x < 0)
 		rx = 0;
@@ -53,9 +51,8 @@ Vec3d get_pixel_with_reflect(Mat im, int x, int y){
 	int w = im.cols;
 	int h = im.rows;
 
-	// initialize rx and ry
-	int rx = x;
-	int ry = y;
+	int rx;
+	int ry;
 
 	if (x < 0)
 		rx = -x;
@@ -110,22 +107,28 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 					for (int i= 0; i < filter.cols; i++){
 						int index_j = j - filter.rows / 2;
 						int index_i = i - filter.cols / 2;
-						
-						Vec3d pixel;
+						int target_x = x + index_i;
+						int target_y = y + index_j;
 
-						switch(borderType){
-							case Border_Constant:
-								pixel = get_pixel_with_zero_padding(im, x + index_i, y + index_j);
-								break;
-							case Border_Replicate:
-								pixel = get_pixel_with_replicate(im, x + index_i, y + index_j);
-								break;
-							case Border_Reflect:
-								pixel = get_pixel_with_reflect(im, x + index_i, y + index_j);
-								break;
-							default:
-								cout << "ERROR! borderType is not valid." << std::endl;
-								pixel = Vec3d(0, 0, 0);
+						Vec3d pixel;
+						// boundary
+						if (target_x < 0 || target_y < 0 || target_x >= im.cols || target_y >= im.rows){
+							switch(borderType){
+								case Border_Constant:
+									pixel = get_pixel_with_zero_padding(im, target_x, target_y);
+									break;
+								case Border_Replicate:
+									pixel = get_pixel_with_replicate(im, target_x, target_y);
+									break;
+								case Border_Reflect:
+									pixel = get_pixel_with_reflect(im, target_x, target_y);
+									break;
+								default:
+									cout << "ERROR! borderType is not valid." << std::endl;
+									pixel = Vec3d(0, 0, 0);
+							}
+						} else {
+							pixel = im.at<Vec3d>(target_y, target_x);
 						}
 
 						//iterate over each channel
