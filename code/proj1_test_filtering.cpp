@@ -86,9 +86,6 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 
 	Mat outI = im.clone();
 	int channels = im.channels();
-	int row_boundary = filter.rows / 2;
-	int column_boundary = filter.cols / 2;
-	Scalar intensity;
 	Vec3d color;
 
 	for (int y= 0; y < outI.rows; y++){
