@@ -180,18 +180,18 @@ Mat DFT_Spectrum(Mat img)
 
 	Mat top_left = magI(Rect(0, 0, center_x, center_y));
 	Mat bottom_right = magI(Rect(center_x, center_y, center_x, center_y));
-
-	Mat swap_mem;
-	top_left.copyTo(swap_mem);
-	bottom_right.copyTo(top_left);
-	swap_mem.copyTo(bottom_right);
-	
 	Mat bottom_left = magI(Rect(0, center_y, center_x, center_y));
 	Mat top_right = magI(Rect(center_x, 0, center_x, center_y));
 
-	bottom_left.copyTo(swap_mem);
-	top_right.copyTo(bottom_left);
-	swap_mem.copyTo(top_right);
+	Mat above_mat;
+	Mat below_mat;
+	Mat final_mat;
+
+	hconcat(bottom_right, bottom_left, above_mat);
+	hconcat(top_right, top_left, below_mat);
+	vconcat(above_mat, below_mat, final_mat);
+
+	magI = final_mat.clone();
 
 	// Transform the matrix with float values into a viewable image form (float between values 0 and 1).
 	normalize(magI, magI, 0, 1, CV_MINMAX);
