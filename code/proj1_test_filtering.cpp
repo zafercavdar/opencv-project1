@@ -16,51 +16,16 @@ using namespace std;
 
 Mat myFilter(Mat, Mat, int);
 
-Vec3d get_pixel_with_zero_padding(Mat im, int x, int y){
-	if (x < 0 || y < 0)
-		return Vec3d(0, 0, 0);
-	else if(x >= im.cols || y >= im.rows)
-		return Vec3d(0, 0, 0);
+double get_val_with_replicate(Mat im, int x, int y, int c){
+	int rx = (x < 0) ? 0 : im.cols - 1;
+	int ry = (y < 0) ? 0 : im.rows - 1;
+	return im.at<Vec3d>(ry, rx)[c];
 }
 
-Vec3d get_pixel_with_replicate(Mat im, int x, int y){
-	int w = im.cols;
-	int h = im.rows;
-
-	int rx;
-	int ry;
-
-	if (x < 0)
-		rx = 0;
-	else if (x >= w)
-		rx = w - 1;
-	
-	if (y < 0)
-		ry = 0;
-	else if (y >= h)
-		ry = h - 1;
-
-	return im.at<Vec3d>(ry, rx);
-}
-
-Vec3d get_pixel_with_reflect(Mat im, int x, int y){
-	int w = im.cols;
-	int h = im.rows;
-
-	int rx;
-	int ry;
-
-	if (x < 0)
-		rx = -x;
-	else if (x >= w)
-		rx = (w - 1) * 2 - x;
-	
-	if (y < 0)
-		ry = -y;
-	else if (y >= h)
-		ry = (h - 1) * 2 - y;
-	
-	return im.at<Vec3d>(ry, rx);
+double get_val_with_reflect(Mat im, int x, int y, int c){
+	int rx = (x < 0) ? -x : (im.cols - 1) * 2 - x;
+	int ry = (y < 0) ? -y : (im.rows - 1) * 2 - y;	
+	return im.at<Vec3d>(ry, rx)[c];
 }
 
 
@@ -86,55 +51,42 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 
 	Mat outI = im.clone();
 	int channels = im.channels();
-	Vec3d color;
+	Vec3d acc;
+	double val;
 
 	for (int y= 0; y < outI.rows; y++){
 		for (int x= 0; x < outI.cols; x++){
-			if (channels == 3){
-
-				// reset color accumulator
-				color = Vec3d(0, 0, 0);
-				
+			// reset color accumulator
+			acc = Vec3d(0, 0, 0);
+			for (int c=0; c < channels; c++){
 				// iterate over filter
 				for (int j= 0; j < filter.rows; j++){
 					for (int i= 0; i < filter.cols; i++){
-						int index_j = j - filter.rows / 2;
-						int index_i = i - filter.cols / 2;
-						int target_x = x + index_i;
-						int target_y = y + index_j;
-
-						Vec3d pixel;
+						int target_x = (j - filter.rows / 2) + x;
+						int target_y = (i - filter.cols / 2) + y;
+						
 						// boundary
 						if (target_x < 0 || target_y < 0 || target_x >= im.cols || target_y >= im.rows){
 							switch(borderType){
 								case Border_Constant:
-									pixel = get_pixel_with_zero_padding(im, target_x, target_y);
-									break;
+									val = 0.0; break;
 								case Border_Replicate:
-									pixel = get_pixel_with_replicate(im, target_x, target_y);
-									break;
+									val = get_val_with_replicate(im, target_x, target_y, c); break;
 								case Border_Reflect:
-									pixel = get_pixel_with_reflect(im, target_x, target_y);
-									break;
+									val = get_val_with_reflect(im, target_x, target_y, c); break;
 								default:
 									cout << "ERROR! borderType is not valid." << std::endl;
-									pixel = Vec3d(0, 0, 0);
 							}
 						} else {
-							pixel = im.at<Vec3d>(target_y, target_x);
+							val = im.at<Vec3d>(target_y, target_x)[c];
 						}
 
-						//iterate over each channel
-						for (int c=0; c < channels; c++){
-							color[c] += pixel.val[c] * filter.at<double>(j, i);
-						}
+						// append product of pixel and filter scalar to accumulator
+						acc[c] += val * filter.at<double>(j, i);
 					}
 				}
-				// update output image with calculated color
-				outI.at<Vec3d>(y, x) = color;
-
-			} else if (channels == 1){
-				// outI.at<uchar>(y, x) = 128;
+				// update output image with accumulated color
+				outI.at<Vec3d>(y, x)[c] = acc[c];
 			}
 		}
 	}
@@ -175,6 +127,7 @@ int main()
 	imshow("Blur image", blur_image);
 	waitKey(0);
 	imwrite("blur_image.jpg", blur_image); //save the blur image as jpeg
+
 
 	////   Large blur  ////
 	//This blur would be slow to do directly, so we instead use the fact that
