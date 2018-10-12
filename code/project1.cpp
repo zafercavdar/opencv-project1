@@ -15,17 +15,20 @@ Mat myFilter(Mat, Mat, int);
 Mat hybrid_image_visualize(Mat);
 Mat DFT_Spectrum(Mat);
 
+// find the nearest point to x, y inside the image
 double get_val_with_replicate(Mat im, int x, int y, int c){
 	int rx = (x < 0) ? 0 : im.cols - 1;
 	int ry = (y < 0) ? 0 : im.rows - 1;
 	return im.at<Vec3d>(ry, rx)[c];
 }
 
+// find the mirror position of x, y inside the image
 double get_val_with_reflect(Mat im, int x, int y, int c){
 	int rx = (x < 0) ? -x : (im.cols - 1) * 2 - x;
 	int ry = (y < 0) ? -y : (im.rows - 1) * 2 - y;	
 	return im.at<Vec3d>(ry, rx)[c];
 }
+
 
 enum border { Border_Replicate, Border_Reflect, Border_Constant };
 
@@ -43,24 +46,21 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 
 	Boundary handling can be tricky.The filter can't be centered on pixels
 	at the image boundary without parts of the filter being out of bounds.
-	There are several options to deal with boundaries. Your code should be
-	able to handle the border types defined above as the following enum types:
-	* Border_Replicate:     aaaaaa|abcdefgh|hhhhhhh
-	* Border_Reflect:       fedcba|abcdefgh|hgfedcb
-	* Border_Constant:      iiiiii|abcdefgh|iiiiiii  with 'i=0'
-	(image boundaries are denoted with '|')
-	
-	*/
+	There are several options to deal with boundaries. -- pad the input image with zeros, and
+	return a filtered image which matches the input resolution. A better
+	approach is to mirror the image content over the boundaries for padding.*/
 
 	Mat outI = im.clone();
 	int channels = im.channels();
 	Vec3d acc;
 	double val;
 
+	// iterate over input matrix (cloned as outI)
 	for (int y= 0; y < outI.rows; y++){
 		for (int x= 0; x < outI.cols; x++){
 			// reset color accumulator
 			acc = Vec3d(0, 0, 0);
+			// iterate over channels
 			for (int c=0; c < channels; c++){
 				// iterate over filter
 				for (int j= 0; j < filter.rows; j++){
@@ -68,7 +68,7 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 						int target_x = (j - filter.rows / 2) + x;
 						int target_y = (i - filter.cols / 2) + y;
 						
-						// boundary
+						// if boundary, handle it according to border type
 						if (target_x < 0 || target_y < 0 || target_x >= im.cols || target_y >= im.rows){
 							switch(borderType){
 								case Border_Constant:
@@ -81,6 +81,7 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 									cout << "ERROR! borderType is not valid." << std::endl;
 							}
 						} else {
+							// directly get the pixel from input image
 							val = im.at<Vec3d>(target_y, target_x)[c];
 						}
 
@@ -141,6 +142,7 @@ Mat DFT_Spectrum(Mat img)
 	/////////////////////////////////////////////////////////////////////
 	//STEP 1: pad the input image to optimal size using getOptimalDFTSize()
 	Mat padded_img;
+	// calculate frame size
 	int border_y = getOptimalDFTSize(img.rows) - img.rows;
 	int border_x = getOptimalDFTSize(img.cols) - img.cols;
 	copyMakeBorder(img, padded_img, 0, border_y, 0, border_x, BORDER_CONSTANT, Scalar(0));
@@ -151,7 +153,9 @@ Mat DFT_Spectrum(Mat img)
 	// Use the function dft(src, dst, DFT_COMPLEX_OUTPUT) to return a complex Mat variable.
 	// The first dimension represents the real part and second dimesion represents the complex part of the DFT 
 	Mat dft_img;
+	// get dft
 	dft(padded_img, dft_img, DFT_COMPLEX_OUTPUT);
+	// split DFT results into real and complex
 	vector<Mat> parts(2);
 	split(dft_img, parts);
 	Mat real = parts[0];
@@ -161,8 +165,11 @@ Mat DFT_Spectrum(Mat img)
 	//=> log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
 	
 	Mat magI;
+	// calculate magnitude
 	magnitude(real, complex, magI);
+	// add 1
 	magI += Scalar(1);
+	// apply log on matrix
 	log(magI, magI);
 
 	///////////////////////////////////////////////////////////////////
@@ -175,9 +182,11 @@ Mat DFT_Spectrum(Mat img)
 	//crop the spectrum, if it has an odd number of rows or columns
 	magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
 
+	// find centers
 	int center_y = magI.rows / 2;
 	int center_x = magI.cols / 2;
 
+	// find quadrants
 	Mat top_left = magI(Rect(0, 0, center_x, center_y));
 	Mat bottom_right = magI(Rect(center_x, center_y, center_x, center_y));
 	Mat bottom_left = magI(Rect(0, center_y, center_x, center_y));
@@ -187,8 +196,11 @@ Mat DFT_Spectrum(Mat img)
 	Mat below_mat;
 	Mat final_mat;
 
+	// horizontally concat bottom right and bottom left
 	hconcat(bottom_right, bottom_left, above_mat);
+	// horizontally concat top right and top left
 	hconcat(top_right, top_left, below_mat);
+	// vertically concat horizontally generated regions
 	vconcat(above_mat, below_mat, final_mat);
 
 	magI = final_mat.clone();

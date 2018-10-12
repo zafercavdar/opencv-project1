@@ -16,12 +16,14 @@ using namespace std;
 
 Mat myFilter(Mat, Mat, int);
 
+// find the nearest point to x, y inside the image
 double get_val_with_replicate(Mat im, int x, int y, int c){
 	int rx = (x < 0) ? 0 : im.cols - 1;
 	int ry = (y < 0) ? 0 : im.rows - 1;
 	return im.at<Vec3d>(ry, rx)[c];
 }
 
+// find the mirror position of x, y inside the image
 double get_val_with_reflect(Mat im, int x, int y, int c){
 	int rx = (x < 0) ? -x : (im.cols - 1) * 2 - x;
 	int ry = (y < 0) ? -y : (im.rows - 1) * 2 - y;	
@@ -54,10 +56,12 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 	Vec3d acc;
 	double val;
 
+	// iterate over input matrix (cloned as outI)
 	for (int y= 0; y < outI.rows; y++){
 		for (int x= 0; x < outI.cols; x++){
 			// reset color accumulator
 			acc = Vec3d(0, 0, 0);
+			// iterate over channels
 			for (int c=0; c < channels; c++){
 				// iterate over filter
 				for (int j= 0; j < filter.rows; j++){
@@ -65,7 +69,7 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 						int target_x = (j - filter.rows / 2) + x;
 						int target_y = (i - filter.cols / 2) + y;
 						
-						// boundary
+						// if boundary, handle it according to border type
 						if (target_x < 0 || target_y < 0 || target_x >= im.cols || target_y >= im.rows){
 							switch(borderType){
 								case Border_Constant:
@@ -78,6 +82,7 @@ Mat myFilter(Mat im, Mat filter, int borderType = Border_Replicate)
 									cout << "ERROR! borderType is not valid." << std::endl;
 							}
 						} else {
+							// directly get the pixel from input image
 							val = im.at<Vec3d>(target_y, target_x)[c];
 						}
 
