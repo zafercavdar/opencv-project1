@@ -201,14 +201,14 @@ Mat DFT_Spectrum(Mat img)
 int main()
 {
 	//Read images
-	Mat image1 = imread("data/motorcycle.bmp");
+	Mat image1 = imread("data/dog.bmp");
 	if (!image1.data)                              // Check for invalid image
 	{
 		cout << "Could not open or find the image" << std::endl;
 		return -1;
 	}
 
-	Mat image2 = imread("data/bicycle.bmp");
+	Mat image2 = imread("data/cat.bmp");
 	if (!image2.data)                              // Check for invalid image
 	{
 		cout << "Could not open or find the image" << std::endl;
@@ -242,11 +242,11 @@ int main()
 	//========================================================================
 	////  FILTERING AND HYBRID IMAGE CONSTRUCTION  ////
 
-	// int cutoff_frequency = 7; // for dog and cat
+	int cutoff_frequency = 7; // for dog and cat
 	// int cutoff_frequency = 5; // for bird and plane
 	// int cutoff_frequency = 5; // for marilyn and einstein
 	// int cutoff_frequency = 6; // for fish and submarine
-	int cutoff_frequency = 6; // for motorcycle and bicycle
+	// int cutoff_frequency = 6; // for motorcycle and bicycle
 
 	/*This is the standard deviation, in pixels, of the
 	Gaussian blur that will remove the high frequencies from one image and
@@ -320,4 +320,5 @@ int main()
 	Mat high_freq_DFT = DFT_Spectrum(high_freq_img);
 	imshow("High Frequencies DFT", high_freq_DFT); waitKey(0);
 	imwrite("High_Freq_DFT.jpg", high_freq_DFT * 255);
+
 }
